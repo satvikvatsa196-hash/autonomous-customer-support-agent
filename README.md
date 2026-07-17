@@ -1,7 +1,5 @@
 # 🤖 Autonomous AI Customer Support Agent
 
-![Banner Image Placeholders](https://via.placeholder.com/1000x300?text=Autonomous+Customer+Support+Agent)
-
 ## 📌 Project Overview
 This project is a full-stack, state-of-the-art Autonomous AI Customer Support Agent built to demonstrate advanced software engineering principles. It leverages Large Language Models (LLMs) orchestrated by LangGraph to dynamically resolve customer inquiries, automate backend actions (like processing refunds or tracking shipments), and answer complex policy questions via Retrieval-Augmented Generation (RAG).
 
@@ -159,10 +157,3 @@ Content-Type: application/json
   "reply": "I have successfully processed the refund for your order #998. The status has been updated. Is there anything else I can assist you with?"
 }
 ```
-
-## 📸 Screenshots
-*(Placeholder for your amazing UI screenshots! Add images showcasing the features below)*
-
-- **Chat Interface**: Showcasing the dynamic AI chat UI built with React and Tailwind CSS.
-- **RAG in Action**: Demonstrating the agent answering policy questions accurately.
-- **Tool Execution**: Showing the agent successfully refunding a database order.
