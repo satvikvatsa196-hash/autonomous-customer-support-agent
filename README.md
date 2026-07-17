@@ -156,5 +156,20 @@ To ensure a smooth implementation, break the project down into these manageable 
 * Write a comprehensive `README.md` with setup instructions and architecture diagrams.
 * (Optional) Containerize with Docker or deploy to Render / Vercel.
 
-> [!IMPORTANT]
 > Focus on the quality of your code, clear comments, and robust error handling. Internship recruiters care more about how well you build a simple system than how many buzzwords you can fit into a messy one.
+
+## 7. Docker Setup
+
+To easily run the application using Docker Compose, ensure you have Docker installed and your `.env` file created in `backend/.env` with your `OPENAI_API_KEY`.
+
+1. **Build and start the containers:**
+```bash
+docker-compose up --build -d
+```
+2. **Access the services:**
+- FastAPI Backend: `http://localhost:8000`
+- PostgreSQL Database: `localhost:5432`
+- ChromaDB API: `http://localhost:8001`
+- React Frontend (if running locally): `http://localhost:5173`
+
+> Note: The backend API runs inside a container, so ensure your local `.env` and `docker-compose.yml` reflect the correct connection URLs.

@@ -1,4 +1,5 @@
 import os
+import chromadb
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -32,12 +33,21 @@ def setup_rag():
     embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
     
     # Create or update the vector store
-    vectorstore = Chroma.from_documents(
-        documents=splits, 
-        embedding=embeddings, 
-        persist_directory=CHROMA_DB_DIR
-    )
-    print("RAG setup complete! Vectors persisted to disk.")
+    if settings.CHROMA_HOST:
+        print(f"Connecting to remote ChromaDB at {settings.CHROMA_HOST}:{settings.CHROMA_PORT}")
+        client = chromadb.HttpClient(host=settings.CHROMA_HOST, port=settings.CHROMA_PORT)
+        vectorstore = Chroma.from_documents(
+            documents=splits, 
+            embedding=embeddings, 
+            client=client
+        )
+    else:
+        vectorstore = Chroma.from_documents(
+            documents=splits, 
+            embedding=embeddings, 
+            persist_directory=CHROMA_DB_DIR
+        )
+    print("RAG setup complete! Vectors persisted.")
     return vectorstore
 
 def get_retriever():
@@ -47,10 +57,17 @@ def get_retriever():
     embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
     
     # Load the existing vector store
-    vectorstore = Chroma(
-        persist_directory=CHROMA_DB_DIR, 
-        embedding_function=embeddings
-    )
+    if settings.CHROMA_HOST:
+        client = chromadb.HttpClient(host=settings.CHROMA_HOST, port=settings.CHROMA_PORT)
+        vectorstore = Chroma(
+            client=client, 
+            embedding_function=embeddings
+        )
+    else:
+        vectorstore = Chroma(
+            persist_directory=CHROMA_DB_DIR, 
+            embedding_function=embeddings
+        )
     
     # Retrieve the top 2 most relevant chunks
     return vectorstore.as_retriever(search_kwargs={"k": 2})
