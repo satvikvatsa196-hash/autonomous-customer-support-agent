@@ -1,175 +1,168 @@
-# Autonomous Customer Support Agent
+# 🤖 Autonomous AI Customer Support Agent
 
-This document outlines the architecture, database schema, agent workflow, and development roadmap for an internship-level Autonomous Customer Support Agent. The system is designed to be impressive but approachable, perfect for a strong software engineering internship portfolio.
+![Banner Image Placeholders](https://via.placeholder.com/1000x300?text=Autonomous+Customer+Support+Agent)
 
-## 1. Architecture Diagram
+## 📌 Project Overview
+This project is a full-stack, state-of-the-art Autonomous AI Customer Support Agent built to demonstrate advanced software engineering principles. It leverages Large Language Models (LLMs) orchestrated by LangGraph to dynamically resolve customer inquiries, automate backend actions (like processing refunds or tracking shipments), and answer complex policy questions via Retrieval-Augmented Generation (RAG).
 
-The system follows a standard modern web architecture, integrating an LLM agent capable of tool usage and Retrieval-Augmented Generation (RAG).
+## ⚠️ Problem Statement
+Modern e-commerce platforms struggle with high volumes of repetitive customer support inquiries. Human agents spend too much time answering simple policy questions or performing rudimentary database lookups (e.g., checking shipping status). Rule-based chatbots are brittle and frustrate users. 
+
+**Solution:** A stateful, AI-driven agent capable of understanding semantic intent, retaining conversational memory, executing actual backend Python logic (Tool Calling), and securely retrieving company documents (RAG) to provide an internship-level, enterprise-grade automated support experience.
+
+## 🏗️ Architecture Diagram
+The system is built on a modern decoupled architecture:
 
 ```mermaid
 graph TD
-    %% Entities
-    User[👤 Customer]
-    UI[🖥️ React Frontend]
-    API[⚙️ FastAPI Backend]
-    Agent[🤖 LangGraph Agent]
-    LLM[🧠 OpenAI API]
-    DB[(🐘 PostgreSQL)]
-    VDB[(📊 ChromaDB)]
+    User((👤 Customer)) <-->|React Frontend| UI[💻 Client UI]
+    UI <-->|REST API + JWT| API[⚙️ FastAPI Backend]
     
-    %% Relationships
-    User <-->|Chat Interface| UI
-    UI <-->|RESTful API| API
-    API -->|Manage Chat History| DB
-    API <-->|Invoke| Agent
-    
-    Agent <-->|Function Calling| LLM
-    Agent -->|Retrieve Knowledge| VDB
-    Agent -->|Execute Backend Tools| DB
+    subgraph Backend & AI Orchestration
+        API <-->|Memory Load/Save| DB[(🐘 PostgreSQL)]
+        API <-->|Invoke Graph| Agent[🧠 LangGraph Engine]
+        
+        Agent <-->|Structured Outputs| LLM[🤖 OpenAI GPT-4o-Mini]
+        Agent <-->|Semantic Search| VDB[(📊 ChromaDB)]
+        Agent <-->|Execute API| Tools[🛠️ Backend Services]
+        
+        Tools --> DB
+    end
 ```
 
-> [!NOTE] 
-> The architecture separates concerns clearly: React handles the UI, FastAPI acts as the orchestrator and API gateway, LangGraph manages the stateful agent loop, PostgreSQL stores application state and chat history, and ChromaDB manages the vectorized company knowledge base.
-
-## 2. Backend Folder Structure
-
-The project will use a standard modular FastAPI structure to maintain clean separation of concerns.
-
-```text
-backend/
-├── app/
-│   ├── api/                  # API routing (e.g., chat.py, knowledge.py)
-│   ├── core/                 # App configuration & environment variables
-│   ├── db/                   # Database setup & sessions
-│   ├── models/               # SQLAlchemy ORM models (Postgres)
-│   ├── schemas/              # Pydantic validation models
-│   ├── agent/                # AI Agent Logic
-│   │   ├── graph.py          # LangGraph state graph definition
-│   │   ├── tools.py          # Tools for OpenAI (e.g., check_order, refund)
-│   │   ├── rag.py            # ChromaDB retrieval functions
-│   │   └── prompts.py        # System instructions
-│   └── main.py               # FastAPI application entry point
-├── tests/                    # Pytest test cases
-├── requirements.txt          # Python dependencies
-└── .env                      # Environment variables
-```
-
-## 3. Database Schema (PostgreSQL)
-
-We will keep the schema simple but robust to track users, their chat sessions, and individual messages.
-
-```mermaid
-erDiagram
-    CUSTOMER ||--o{ SESSION : has
-    CUSTOMER {
-        int id PK
-        string email
-        string name
-        datetime created_at
-    }
-    
-    SESSION ||--o{ MESSAGE : contains
-    SESSION {
-        int id PK
-        int customer_id FK
-        string status "active/closed"
-        datetime created_at
-    }
-    
-    MESSAGE {
-        int id PK
-        int session_id FK
-        string role "user/agent/system"
-        text content
-        datetime created_at
-    }
-```
-
-> [!TIP]
-> Storing the conversation history in PostgreSQL allows the system to reconstruct LangChain/LangGraph memory easily across different backend restarts.
-
-## 4. Agent Workflow (LangGraph)
-
-The agent utilizes LangGraph to create a robust decision-making loop. It analyzes user input, decides whether it needs to search the knowledge base, execute a tool (like looking up an order), or respond directly.
+## 🔄 Agent Workflow (LangGraph)
+Unlike standard linear LLM chains, this agent uses a cyclic graph (State Machine) to make autonomous decisions without relying on fragile if-else text matching.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ProcessInput
+    [*] --> ClassifyIntent
     
-    state ProcessInput {
+    state ClassifyIntent {
         [*] --> LoadHistory
-        LoadHistory --> PromptLLM
+        LoadHistory --> IdentifyUserIntent
     }
     
-    PromptLLM --> CheckAction: LLM Decision
+    IdentifyUserIntent --> RouteDecision
     
-    CheckAction --> ToolExecution: Needs Tool (e.g. Order Status)
-    CheckAction --> RAG_Search: Needs Knowledge
-    CheckAction --> FormatResponse: Has Answer
+    RouteDecision --> ExecuteTool: Intent = Order/Refund/Ticket
+    RouteDecision --> RAG_Pipeline: Intent = Policy/FAQ
+    RouteDecision --> GeneralChat: Intent = Greeting
     
-    ToolExecution --> PromptLLM: Tool Output
-    RAG_Search --> PromptLLM: Retrieved Docs
+    ExecuteTool --> FormatResponse
+    RAG_Pipeline --> FormatResponse
     
-    FormatResponse --> [*]: Return to User
+    FormatResponse --> [*]
 ```
 
-## 5. API Endpoints
+## 🛠️ Tool Calling Explanation
+The agent doesn't just talk; it acts. Using OpenAI's Function Calling API bound to LangChain tools, the AI dynamically generates typed JSON arguments to interact directly with the PostgreSQL database.
+- `search_orders(user_id)`: Looks up past purchase history.
+- `check_shipping_status(order_id)`: Retrieves tracking IDs.
+- `refund_order(order_id)`: Mutates database state to process a refund.
+- `create_ticket(issue)`: Opens a human escalation ticket.
 
-The FastAPI backend will expose the following RESTful endpoints:
+## 📚 RAG Pipeline
+For questions regarding company policies (Shipping, Returns, Refunds), the agent bypasses standard tools and routes the query to a dedicated RAG (Retrieval-Augmented Generation) node.
+1. Documents are loaded from `knowledge_base.txt`.
+2. Chunked using `RecursiveCharacterTextSplitter`.
+3. Embedded via `OpenAIEmbeddings`.
+4. Stored and retrieved semantically from **ChromaDB**.
+5. Injected directly into the LLM's context window to prevent hallucinations.
 
-### Chat & Sessions
-* `POST /api/sessions`: Initialize a new chat session.
-* `GET /api/sessions/{session_id}/messages`: Fetch chat history for a session.
-* `POST /api/chat`: Send a user message and receive the agent's response.
-  * **Payload**: `{"session_id": 123, "message": "Where is my order?"}`
-  * **Response**: `{"reply": "Your order is currently out for delivery."}`
+## 💾 Database Design
+Built with SQLAlchemy and managed via Alembic migrations, the PostgreSQL database is fully normalized and supports stateful LangGraph memory via JSON columns.
 
-### Knowledge Base (Optional Admin Endpoints)
-* `POST /api/knowledge`: Upload text or PDF to be chunked, embedded, and stored in ChromaDB.
-
-## 6. Development Roadmap
-
-To ensure a smooth implementation, break the project down into these manageable milestones:
-
-**Phase 1: Foundation (Days 1-2)**
-* Initialize Git repository.
-* Set up FastAPI backend and React frontend.
-* Configure PostgreSQL and write SQLAlchemy models (`Customer`, `Session`, `Message`).
-
-**Phase 2: RAG & Tools (Days 3-5)**
-* Set up ChromaDB locally.
-* Implement a script to ingest mock company FAQs into ChromaDB.
-* Define OpenAI tools (e.g., `get_order_status(order_id)`, `search_faq(query)`).
-
-**Phase 3: LangGraph Agent (Days 6-8)**
-* Implement the LangGraph state machine.
-* Connect the agent to SQLite/PostgreSQL memory.
-* Integrate the RAG and API tools into the agent's graph.
-
-**Phase 4: Frontend & API Integration (Days 9-11)**
-* Build a beautiful, responsive chat interface in React using Tailwind CSS.
-* Connect React to the `/api/chat` endpoints.
-* Implement a "typing" indicator while the agent processes tools.
-
-**Phase 5: Polish & Deployment (Days 12-14)**
-* Add error handling and fallback responses.
-* Write a comprehensive `README.md` with setup instructions and architecture diagrams.
-* (Optional) Containerize with Docker or deploy to Render / Vercel.
-
-> Focus on the quality of your code, clear comments, and robust error handling. Internship recruiters care more about how well you build a simple system than how many buzzwords you can fit into a messy one.
-
-## 7. Docker Setup
-
-To easily run the application using Docker Compose, ensure you have Docker installed and your `.env` file created in `backend/.env` with your `OPENAI_API_KEY`.
-
-1. **Build and start the containers:**
-```bash
-docker-compose up --build -d
+```mermaid
+erDiagram
+    USERS ||--o{ ORDERS : places
+    USERS ||--o{ TICKETS : raises
+    USERS ||--o{ CONVERSATIONS : has
+    
+    USERS {
+        int id PK
+        string name
+        string email
+        string hashed_password
+    }
+    
+    ORDERS {
+        int id PK
+        int user_id FK
+        string product_name
+        string status
+    }
+    
+    CONVERSATIONS {
+        int id PK
+        int user_id FK
+        json messages
+    }
 ```
-2. **Access the services:**
-- FastAPI Backend: `http://localhost:8000`
-- PostgreSQL Database: `localhost:5432`
-- ChromaDB API: `http://localhost:8001`
-- React Frontend (if running locally): `http://localhost:5173`
 
-> Note: The backend API runs inside a container, so ensure your local `.env` and `docker-compose.yml` reflect the correct connection URLs.
+## 🚀 Setup Instructions
+
+### Option 1: Docker (Recommended)
+You can run the entire backend application (FastAPI, PostgreSQL, ChromaDB) via Docker.
+1. Clone the repository.
+2. Create a `.env` file in the `backend/` directory:
+   ```env
+   OPENAI_API_KEY=your_api_key_here
+   ```
+3. Run docker-compose from the root directory:
+   ```bash
+   docker-compose up --build -d
+   ```
+4. Start the frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+### Option 2: Local Development
+1. **Database Setup**: Ensure PostgreSQL is running. Update `DATABASE_URL` in your `.env`.
+2. **Backend**:
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   alembic upgrade head
+   python scripts/init_rag.py
+   uvicorn app.main:app --reload
+   ```
+3. **Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+## 📡 API Examples
+The backend exposes a clean REST API. Here is an example of the protected chat endpoint:
+
+**Request:**
+```http
+POST /api/v1/chat HTTP/1.1
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "session_id": 12345,
+  "message": "Can you refund my order 998?"
+}
+```
+
+**Response:**
+```json
+{
+  "reply": "I have successfully processed the refund for your order #998. The status has been updated. Is there anything else I can assist you with?"
+}
+```
+
+## 📸 Screenshots
+*(Placeholder for your amazing UI screenshots! Add images showcasing the features below)*
+
+- **Chat Interface**: Showcasing the dynamic AI chat UI built with React and Tailwind CSS.
+- **RAG in Action**: Demonstrating the agent answering policy questions accurately.
+- **Tool Execution**: Showing the agent successfully refunding a database order.
