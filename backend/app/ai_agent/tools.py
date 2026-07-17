@@ -2,6 +2,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from app.database.session import SessionLocal
 from app.services import orders, tickets
+from app.ai_agent.rag import query_knowledge_base
 
 # Dependency helper to get a fresh DB session for tools
 def get_db():
@@ -66,5 +67,14 @@ def create_ticket(issue: str) -> str:
     ticket = tickets.create_ticket(db, user_id=1, issue=issue)
     return f"Ticket created successfully. Ticket ID: {ticket.id}, Status: {ticket.status}"
 
+# 5. Search Knowledge Base Tool (RAG)
+class SearchKnowledgeBaseInput(BaseModel):
+    query: str = Field(description="The exact question or topic to search for in the company knowledge base (e.g., 'What is the return policy?').")
+
+@tool("search_knowledge_base", args_schema=SearchKnowledgeBaseInput)
+def search_knowledge_base(query: str) -> str:
+    """Search the company knowledge base for policies (refund, return, shipping) and FAQs."""
+    return query_knowledge_base(query)
+
 # Export the tools for the LangGraph agent to use
-agent_tools = [search_orders, check_shipping_status, refund_order, create_ticket]
+agent_tools = [search_orders, check_shipping_status, refund_order, create_ticket, search_knowledge_base]
