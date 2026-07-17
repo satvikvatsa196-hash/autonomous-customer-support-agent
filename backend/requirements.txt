@@ -11,3 +11,6 @@ langchain-core==0.2.18
 langchain-community==0.2.10
 chromadb==0.5.3
 tiktoken==0.7.0
+PyJWT==2.8.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2

@@ -7,11 +7,12 @@ from app.schemas.chat import ChatRequest, ChatResponse
 from app.ai_agent.graph import app as agent_app
 from app.models.conversation import Conversation
 from app.models.user import User
+from app.utils.dependencies import get_current_user
 
 router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
+def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Endpoint to interact with the LangGraph agent, featuring PostgreSQL memory.
     It retrieves previous conversation context before invoking the agent.
@@ -21,15 +22,8 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
         conversation = db.query(Conversation).filter(Conversation.id == request.session_id).first()
         
         if not conversation:
-            # Auto-create a demo user if it doesn't exist (for internship project ease of use)
-            user = db.query(User).filter(User.id == 1).first()
-            if not user:
-                user = User(id=1, name="Demo User", email="demo@example.com")
-                db.add(user)
-                db.commit()
-                
-            # Create a fresh conversation
-            conversation = Conversation(id=request.session_id, user_id=1, messages=[])
+            # Create a fresh conversation assigned to the authenticated user
+            conversation = Conversation(id=request.session_id, user_id=current_user.id, messages=[])
             db.add(conversation)
             db.commit()
             db.refresh(conversation)
