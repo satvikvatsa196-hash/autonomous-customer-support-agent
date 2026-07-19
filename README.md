@@ -42,7 +42,11 @@ stateDiagram-v2
     
     IdentifyUserIntent --> RouteDecision
     
-    RouteDecision --> ExecuteTool: Intent = Order/Refund/Ticket
+    RouteDecision --> ValidateToolParams: Intent = Backend Tool
+    ValidateToolParams --> ExecuteTool: All Params Present
+    ValidateToolParams --> AskUserForInfo: Missing Params
+    AskUserForInfo --> FormatResponse
+    
     RouteDecision --> RAG_Pipeline: Intent = Policy/FAQ
     RouteDecision --> GeneralChat: Intent = Greeting
     
@@ -58,6 +62,9 @@ The agent doesn't just talk; it acts. Using OpenAI's Function Calling API bound 
 - `check_shipping_status(order_id)`: Retrieves tracking IDs.
 - `refund_order(order_id)`: Mutates database state to process a refund.
 - `create_ticket(issue)`: Opens a human escalation ticket.
+
+### Multi-Turn Parameter Collection
+The system natively supports stateful, multi-turn parameter collection. Instead of relying on hardcoded if-else logic in prompts, the agent utilizes a LangGraph `MemorySaver` checkpointer and a dedicated parameter validation node. If a user requests a tool execution without providing required arguments (e.g., asking for an order status without an order ID), the graph intercepts the incomplete tool call, saves the pending task to the graph state, and asks the user for the missing data. Once provided, the graph automatically resumes the original task.
 
 ## 📚 RAG Pipeline
 For questions regarding company policies (Shipping, Returns, Refunds), the agent bypasses standard tools and routes the query to a dedicated RAG (Retrieval-Augmented Generation) node.

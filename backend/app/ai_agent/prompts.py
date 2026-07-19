@@ -25,6 +25,4 @@ Action: check_shipping_status
 After outputting this text:
 - If the action is a backend tool (like check_shipping_status), execute the tool call.
 - If the action is 'trigger_rag' or 'direct_response', simply end your response. The system will handle the rest.
-
-If you need an ID (like user_id) and the customer hasn't provided it, output your Intent and Action, but DO NOT call the tool yet. Ask the user for the missing ID.
 """

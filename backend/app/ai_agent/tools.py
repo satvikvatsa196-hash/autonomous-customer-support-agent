@@ -11,9 +11,11 @@ def get_db():
     finally:
         db.close()
 
+from typing import Optional
+
 # 1. Search Orders Tool
 class SearchOrdersInput(BaseModel):
-    user_id: int = Field(description="The ID of the user to search orders for")
+    user_id: Optional[int] = Field(None, description="The ID of the user to search orders for")
 
 @tool("search_orders", args_schema=SearchOrdersInput)
 def search_orders(user_id: int) -> str:
@@ -28,7 +30,7 @@ def search_orders(user_id: int) -> str:
 
 # 2. Check Shipping Status Tool
 class CheckShippingStatusInput(BaseModel):
-    order_id: int = Field(description="The ID of the order to check shipping status")
+    order_id: Optional[int] = Field(None, description="The ID of the order to check shipping status")
 
 @tool("check_shipping_status", args_schema=CheckShippingStatusInput)
 def check_shipping_status(order_id: int) -> str:
@@ -43,7 +45,7 @@ def check_shipping_status(order_id: int) -> str:
 
 # 3. Refund Order Tool
 class RefundOrderInput(BaseModel):
-    order_id: int = Field(description="The ID of the order to refund")
+    order_id: Optional[int] = Field(None, description="The ID of the order to refund")
 
 @tool("refund_order", args_schema=RefundOrderInput)
 def refund_order(order_id: int) -> str:
@@ -56,7 +58,7 @@ def refund_order(order_id: int) -> str:
 
 # 4. Create Ticket Tool
 class CreateTicketInput(BaseModel):
-    issue: str = Field(description="Description of the issue or problem")
+    issue: Optional[str] = Field(None, description="Description of the issue or problem")
 
 @tool("create_ticket", args_schema=CreateTicketInput)
 def create_ticket(issue: str) -> str:

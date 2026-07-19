@@ -9,3 +9,8 @@ class AgentState(TypedDict):
     to append new messages to the existing list instead of overwriting it.
     """
     messages: Annotated[list[BaseMessage], add_messages]
+    
+    # State tracking for missing parameters
+    dialog_state: str  # e.g., "chat", "collecting_info"
+    active_tool: str
+    missing_params: list[str]

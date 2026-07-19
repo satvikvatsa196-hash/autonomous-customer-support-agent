@@ -34,13 +34,26 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db), current_u
         
         # 3. Append the new user message
         new_message = HumanMessage(content=request.message)
-        inputs = {"messages": history + [new_message]}
         
-        # 4. Invoke LangGraph with the full historical context
-        output = agent_app.invoke(inputs)
+        # We need to ensure the checkpointer has the history if it's the first time processing this session in memory
+        config = {"configurable": {"thread_id": str(request.session_id)}}
+        
+        # Check if the memory saver already has this thread
+        current_state = agent_app.get_state(config)
+        if not current_state.values:
+            # Initialize with history from DB
+            inputs = {"messages": history + [new_message], "dialog_state": "chat", "active_tool": "", "missing_params": []}
+        else:
+            # MemorySaver already has history, just pass the new message
+            inputs = {"messages": [new_message]}
+        
+        # 4. Invoke LangGraph with the new message and config
+        output = agent_app.invoke(inputs, config=config)
         
         # 5. Extract the updated message history and serialize back to dicts
-        updated_messages = output["messages"]
+        # Get the full history from the state
+        final_state = agent_app.get_state(config)
+        updated_messages = final_state.values.get("messages", [])
         conversation.messages = messages_to_dict(updated_messages)
         
         # Save to PostgreSQL
