@@ -72,17 +72,41 @@ def get_retriever():
     # Retrieve the top 2 most relevant chunks
     return vectorstore.as_retriever(search_kwargs={"k": 2})
 
-def query_knowledge_base(query: str) -> str:
+def query_knowledge_base_with_score(query: str) -> tuple[str, bool]:
     """
-    Retrieves the most relevant information for a given query.
-    This acts as the retriever service for the LangGraph agent.
+    Retrieves the most relevant information for a given query,
+    along with a low confidence flag if the match isn't strong enough.
     """
-    retriever = get_retriever()
-    docs = retriever.invoke(query)
+    embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
     
-    if not docs:
-        return "I couldn't find any relevant information in the knowledge base."
+    # Load the existing vector store
+    if settings.CHROMA_HOST:
+        client = chromadb.HttpClient(host=settings.CHROMA_HOST, port=settings.CHROMA_PORT)
+        vectorstore = Chroma(
+            client=client, 
+            embedding_function=embeddings
+        )
+    else:
+        vectorstore = Chroma(
+            persist_directory=CHROMA_DB_DIR, 
+            embedding_function=embeddings
+        )
+        
+    docs_and_scores = vectorstore.similarity_search_with_score(query, k=2)
+    
+    if not docs_and_scores:
+        return "I couldn't find any relevant information in the knowledge base.", True
+    
+    # In Chroma, using default L2 distance, lower score is better.
+    # We set a threshold for low confidence (e.g., > 0.5 can be considered low confidence)
+    best_score = docs_and_scores[0][1]
+    is_low_confidence = best_score > 0.5
     
     # Combine the retrieved chunks into a single text block
-    result = "\n\n".join([f"Source snippet:\n{doc.page_content}" for doc in docs])
+    result = "\n\n".join([f"Source snippet (score {score:.2f}):\n{doc.page_content}" for doc, score in docs_and_scores])
+    return result, is_low_confidence
+
+def query_knowledge_base(query: str) -> str:
+    """Legacy wrapper for existing usage without confidence score."""
+    result, _ = query_knowledge_base_with_score(query)
     return result

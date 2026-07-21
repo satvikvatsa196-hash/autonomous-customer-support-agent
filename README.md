@@ -49,10 +49,15 @@ stateDiagram-v2
     
     RouteDecision --> RAG_Pipeline: Intent = Policy/FAQ
     RouteDecision --> GeneralChat: Intent = Greeting
+    RouteDecision --> Escalate: Intent = Human Handoff / Unknown
     
-    ExecuteTool --> FormatResponse
-    RAG_Pipeline --> FormatResponse
+    ExecuteTool --> FormatResponse: Success
+    ExecuteTool --> Escalate: Repeated Errors
     
+    RAG_Pipeline --> FormatResponse: High Confidence
+    RAG_Pipeline --> Escalate: Low Confidence Score
+    
+    Escalate --> FormatResponse
     FormatResponse --> [*]
 ```
 
@@ -65,6 +70,15 @@ The agent doesn't just talk; it acts. Using OpenAI's Function Calling API bound 
 
 ### Multi-Turn Parameter Collection
 The system natively supports stateful, multi-turn parameter collection. Instead of relying on hardcoded if-else logic in prompts, the agent utilizes a LangGraph `MemorySaver` checkpointer and a dedicated parameter validation node. If a user requests a tool execution without providing required arguments (e.g., asking for an order status without an order ID), the graph intercepts the incomplete tool call, saves the pending task to the graph state, and asks the user for the missing data. Once provided, the graph automatically resumes the original task.
+
+### Human Handoff & Escalation
+To provide a reliable and safe user experience, the agent features a robust human handoff mechanism. The LangGraph workflow dynamically routes the conversation to a dedicated **Escalation Node** under four distinct conditions:
+1. **Explicit Request:** The customer explicitly asks to speak to a human agent.
+2. **Missing Capabilities:** The LLM intent classifier determines that the user's request cannot be fulfilled by any available tools or knowledge base (Unknown Intent).
+3. **Low Retrieval Confidence:** The ChromaDB RAG pipeline evaluates the L2 distance of retrieved documents. If the similarity score is too low, the agent escalates instead of hallucinating an answer.
+4. **Repeated Failures:** An internal state tracker monitors tool execution errors. If a backend service repeatedly fails (e.g. 3 consecutive errors), the agent forcefully aborts the loop and escalates.
+
+Upon escalation, the agent automatically creates a human support ticket via the backend service, injecting the failure reason and user context, and provides the generated Ticket ID back to the customer.
 
 ## 📚 RAG Pipeline
 For questions regarding company policies (Shipping, Returns, Refunds), the agent bypasses standard tools and routes the query to a dedicated RAG (Retrieval-Augmented Generation) node.

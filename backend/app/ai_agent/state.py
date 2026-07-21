@@ -11,6 +11,10 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     
     # State tracking for missing parameters
-    dialog_state: str  # e.g., "chat", "collecting_info"
+    dialog_state: str  # e.g., "chat", "collecting_info", "escalating", "escalated"
     active_tool: str
     missing_params: list[str]
+    
+    # Escalation tracking
+    escalation_reason: str
+    tool_failure_count: int
